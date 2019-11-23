@@ -37,7 +37,7 @@ func New(l int) Config {
 }
 
 func (c Config) Gen() (string, error) {
-	var p, r []byte
+	var p, rU, rL, rN, rS, ch []byte
 
 	if c.Length > 0 && c.Lower+c.Upper+c.Symbols+c.Numbers > c.Length {
 		return "", fmt.Errorf("Required password length is less than minimum required characters")
@@ -48,34 +48,37 @@ func (c Config) Gen() (string, error) {
 	}
 
 	if c.Upper > 0 {
-		ch, rest := pick(c.Upper, c.NoRepeat, c.Cons, c.Exclude, []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+		ch, rU = pick(c.Upper, c.NoRepeat, c.Cons, c.Exclude, []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
 		p = append(p, ch...)
-		r = append(r, rest...)
+		// r = append(r, rest...)
 	}
 
 	if c.Lower > 0 {
-		ch, rest := pick(c.Lower, c.NoRepeat, c.Cons, c.Exclude, []byte("abcdefghijklmnopqrstuvwxyz"))
+		ch, rL = pick(c.Lower, c.NoRepeat, c.Cons, c.Exclude, []byte("abcdefghijklmnopqrstuvwxyz"))
 		p = append(p, ch...)
-		r = append(r, rest...)
+		// r = append(r, rest...)
 	}
 
 	if c.Numbers > 0 {
-		ch, rest := pick(c.Numbers, c.NoRepeat, c.Cons, c.Exclude, []byte("0987654321"))
+		ch, rN = pick(c.Numbers, c.NoRepeat, c.Cons, c.Exclude, []byte("0987654321"))
 		p = append(p, ch...)
-		r = append(r, rest...)
+		// r = append(r, rest...)
 	}
 
 	if c.Symbols > 0 {
-		ch, rest := pick(c.Symbols, c.NoRepeat, c.Cons, c.Exclude, []byte(" !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"))
+		ch, rS = pick(c.Symbols, c.NoRepeat, c.Cons, c.Exclude, []byte(" !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"))
 		p = append(p, ch...)
-		r = append(r, rest...)
+		// r = append(r, rest...)
 	}
 
 	if c.Length > c.Lower+c.Upper+c.Symbols+c.Numbers {
-		rest, _ := pick(c.Length-(c.Lower+c.Upper+c.Symbols+c.Numbers), c.NoRepeat, c.Cons, c.Exclude, r)
-		p = append(p, rest...)
+		p = append(p, rU...)
+		p = append(p, rL...)
+		p = append(p, rN...)
+		p = append(p, rS...)
 
 	}
+
 	p, _ = pick(c.Length, true, c.Cons, c.Exclude, p)
 	if len(p) == 0 {
 		return "", fmt.Errorf("There are no characters to pickup from!")
