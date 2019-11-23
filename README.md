@@ -89,13 +89,13 @@ func main() {
 	fmt.Println(p)
 }
 ```
-
+consecutive example:
 ```
 &rndpass.Config{
 		Length:   22,
-		Numbers:  1, // have 10 numbers if possible ( with noRepeat=true and exclude="12345" only 67890 will be use )
-		Lower:    1, // have 10 lower case letters
-		Upper:    1, // have 10 upper case letters
+		Numbers:  1,
+		Lower:    1,
+		Upper:    1,
 		Symbols:  1,
 		Exclude:  "@\"",
 		NoRepeat: true,
