@@ -89,14 +89,19 @@ func Test_pick(t *testing.T) {
 }
 
 func Test_consGroup(t *testing.T) {
-	a := consGroup([]byte("1234567890abcdefghijklmnopqrstuvwxyz"), '1')
-	if string(a) != "abcdefghijklmnopqrstuvwxyz" {
-		t.Errorf("expects %s = %s", string(a), "abcdefghijklmnopqrstuvwxyz")
+	a := consGroup([]byte("01239abcdxyz!@#|\""), '1')
+	if string(a) != "abcdxyz!@#|\"" {
+		t.Errorf("expects %s = %s", string(a), "abcdxyz!@#|\"")
 	}
-	a = consGroup([]byte("1234567890abcdefghijklmnopqrstuvwxyz"), 'a')
-	if string(a) != "1234567890" {
-		t.Errorf("expects %s = %s", string(a), "1234567890")
+	a = consGroup([]byte("01239abcdxyz!@#|\""), 'a')
+	if string(a) != "01239!@#|\"" {
+		t.Errorf("expects %s = %s", string(a), "01239!@#|\"")
 	}
+	a = consGroup([]byte("01239abcdxyz"), '%')
+	if string(a) != "01239abcdxyz" {
+		t.Errorf("expects %s = %s", string(a), "01239abcdxyz")
+	}
+
 }
 
 func benchmark_Gen(size int, b *testing.B) {
