@@ -37,16 +37,16 @@ func testGen(le, l, u, n, s int, e string, noRepeat bool, t *testing.T) {
 		symbols++
 	}
 	if lowerCase < l {
-		t.Errorf("Want minimum %d lowercase letters have %d", l, lowerCase)
+		t.Errorf("Want minimum %d lowercase letters have %d %s", l, lowerCase, a)
 	}
 	if upperCase < u {
-		t.Errorf("Want minimum %d uppercase letters have %d", l, upperCase)
+		t.Errorf("Want minimum %d uppercase letters have %d", u, upperCase)
 	}
 	if numbers < n {
-		t.Errorf("Want minimum %d numbers have %d", l, numbers)
+		t.Errorf("Want minimum %d numbers have %d", n, numbers)
 	}
 	if symbols < s {
-		t.Errorf("Want minimum %d symbols have %d", l, symbols)
+		t.Errorf("Want minimum %d symbols have %d %s", s, symbols, a)
 	}
 
 	if e != "" {
@@ -82,9 +82,20 @@ func TestGenExclude(t *testing.T) { testGen(50, 20, 10, 0, 20, "ABC!@#", false, 
 func TestGenRepeat(t *testing.T)  { testGen(50, 20, 10, 0, 20, "ABC!@#", true, t) }
 
 func Test_pick(t *testing.T) {
-	a, b := pick(10, false, "", []byte("test"))
+	a, b := pick(10, false, false, "", []byte("test"))
 	if string(a) == "test" && string(b) != "" {
 		t.Errorf("pick return wrong %s != \"test\"", string(a))
+	}
+}
+
+func Test_consGroup(t *testing.T) {
+	a := consGroup([]byte("1234567890abcdefghijklmnopqrstuvwxyz"), '1')
+	if string(a) != "abcdefghijklmnopqrstuvwxyz" {
+		t.Errorf("expects %s = %s", string(a), "abcdefghijklmnopqrstuvwxyz")
+	}
+	a = consGroup([]byte("1234567890abcdefghijklmnopqrstuvwxyz"), 'a')
+	if string(a) != "1234567890" {
+		t.Errorf("expects %s = %s", string(a), "1234567890")
 	}
 }
 

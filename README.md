@@ -1,10 +1,17 @@
 # rndpass
 
-Random password library.
+Random password generator library.
+
+### Configs
+- Disallow repeat characters
+- Disallow consecutive characters from same type ( sagdfge, 3124353, DARGW, @#$%^&)
+- Exclude charaters list
+
 
 ## Getting Started
 
 ```go get -u github.com/yboikov/rndpass```
+
 
 ## Examples
 
@@ -72,6 +79,7 @@ func main() {
 		Upper:    10, // have 10 upper case letters 
 		Symbols:  10, // have 10 symbols
 		NoRepeat: true, // do not repeat characters in password
+		Cons:     true, // disallow consecutive characters ( abf,128,!@* etc)
 		Exclude:  "@\"12345", // exclude list - what charcters to exlude 
 	}
 	p, err := f.Gen()
