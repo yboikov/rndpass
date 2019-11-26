@@ -161,14 +161,15 @@ func consByte(a []byte) []byte {
 	badValuesRe := regexp.MustCompile(`([a-z]{2,}|[A-Z]{2,}|[0-9]{2,})`)
 	badValues := badValuesRe.Find(tmp)
 	if len(badValues) > 0 {
-		for _, v := range badValues {
-			if v >= 'A' && v <= 'Z' {
+		for k := len(badValues) - 1; k >= 0; k-- {
+			//for _, v := range badValues {
+			if tmp[k] >= 'A' && tmp[k] <= 'Z' {
 				re = regexp.MustCompile(`[^A-Z]{2}`)
 			}
-			if v >= 'a' && v <= 'z' {
+			if tmp[k] >= 'a' && tmp[k] <= 'z' {
 				re = regexp.MustCompile(`[^a-z]{2}`)
 			}
-			if v >= '0' && v <= '9' {
+			if tmp[k] >= '0' && tmp[k] <= '9' {
 				re = regexp.MustCompile(`[^0-9]{2}`)
 			}
 			loc := re.FindIndex(tmp)
@@ -177,7 +178,7 @@ func consByte(a []byte) []byte {
 			}
 			tmp = append(tmp, 0)
 			copy(tmp[loc[1]:], tmp[loc[1]-1:])
-			tmp[loc[1]-1] = v
+			tmp[loc[1]-1] = tmp[k]
 
 			tmp[len(tmp)-1] = 0
 			tmp = tmp[:len(tmp)-1]
