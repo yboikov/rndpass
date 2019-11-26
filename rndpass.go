@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"regexp"
 )
 
 type chars []byte
@@ -37,10 +38,26 @@ func New(l int) Config {
 }
 
 func (c Config) Gen() (string, error) {
-	var p, rU, rL, rN, rS, ch []byte
+	var pass []byte
+	pass, err := c.GenBytes()
+	if err != nil {
+		return "", err
+	}
+	return string(pass), nil
+}
 
+func (c Config) GenBytes() ([]byte, error) {
+	var p, rest []byte
 	if c.Length > 0 && c.Lower+c.Upper+c.Symbols+c.Numbers > c.Length {
-		return "", fmt.Errorf("Required password length is less than minimum required characters")
+		return []byte{}, fmt.Errorf("Required password length is less than minimum required characters")
+	}
+
+	if c.Lower+c.Upper+c.Symbols+c.Numbers == 0 {
+		// default
+		c.Lower = 1
+		c.Upper = 1
+		c.Numbers = 1
+		c.Symbols = 1
 	}
 
 	if c.Length == 0 {
@@ -48,76 +65,71 @@ func (c Config) Gen() (string, error) {
 	}
 
 	if c.Upper > 0 {
-		ch, rU = pick(c.Upper, c.NoRepeat, c.Cons, c.Exclude, []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+		ch, r := pick(c.Upper, c.NoRepeat, c.Cons, c.Exclude, []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
 		p = append(p, ch...)
-		// r = append(r, rest...)
+		rest = append(rest, r...)
 	}
 
 	if c.Lower > 0 {
-		ch, rL = pick(c.Lower, c.NoRepeat, c.Cons, c.Exclude, []byte("abcdefghijklmnopqrstuvwxyz"))
+		ch, r := pick(c.Lower, c.NoRepeat, c.Cons, c.Exclude, []byte("abcdefghijklmnopqrstuvwxyz"))
 		p = append(p, ch...)
-		// r = append(r, rest...)
+		rest = append(rest, r...)
+
 	}
 
 	if c.Numbers > 0 {
-		ch, rN = pick(c.Numbers, c.NoRepeat, c.Cons, c.Exclude, []byte("0987654321"))
+		ch, r := pick(c.Numbers, c.NoRepeat, c.Cons, c.Exclude, []byte("0987654321"))
 		p = append(p, ch...)
-		// r = append(r, rest...)
+		rest = append(rest, r...)
+
 	}
 
 	if c.Symbols > 0 {
-		ch, rS = pick(c.Symbols, c.NoRepeat, c.Cons, c.Exclude, []byte(" !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"))
+		ch, r := pick(c.Symbols, c.NoRepeat, c.Cons, c.Exclude, []byte(" !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"))
 		p = append(p, ch...)
-		// r = append(r, rest...)
+		rest = append(rest, r...)
+
 	}
 
 	if c.Length > c.Lower+c.Upper+c.Symbols+c.Numbers {
-		p = append(p, rU...)
-		p = append(p, rL...)
-		p = append(p, rN...)
-		p = append(p, rS...)
-
+		freeCount := c.Length - (c.Lower + c.Upper + c.Symbols + c.Numbers)
+		rest, _ = pick(freeCount, c.NoRepeat, c.Cons, c.Exclude, rest)
+		p = append(p, rest...)
 	}
 
 	p, _ = pick(c.Length, true, c.Cons, c.Exclude, p)
-	if len(p) == 0 {
-		return "", fmt.Errorf("There are no characters to pickup from!")
+	if c.Cons {
+		p = consByte(p)
 	}
-	return string(p), nil
+	if len(p) == 0 {
+		return []byte{}, fmt.Errorf("There are no characters to pickup from!")
+	}
+	return p, nil
 }
 
 func pick(n int, r, c bool, e string, chars []byte) ([]byte, []byte) {
-	var tempChars []byte
 	var pos int
 	var b [8]byte
-	pickUp := make([]byte, n)
+	var pickUp []byte
 	cr.Read(b[:])
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
 	// remove exluded characters from chars
-	for _, v := range e {
-		pos = bytes.IndexByte(chars, byte(v))
-		if pos > -1 {
-			chars = removeByte(chars, pos)
-		}
+	i := bytes.IndexAny(chars, e)
+	for i > -1 {
+		chars = removeByte(chars, i)
+		i = bytes.IndexAny(chars, e)
 	}
-
 	if len(chars) == 0 {
 		return []byte{}, []byte{}
 	}
 
 	for k := 0; k < n; k++ {
-		if c && k > 0 {
-			tempChars = consGroup(chars, rune(pickUp[k-1]))
-			pos = rand.Intn(len(tempChars))
-			pickUp[k] = tempChars[pos]
-		} else {
-			pos = rand.Intn(len(chars))
-			pickUp[k] = chars[pos]
-		}
+		pos = rand.Intn(len(chars))
+		pickUp = append(pickUp, chars[pos])
 
 		// if no repeat is set remove picked up char
 		if r {
-			chars = removeByte(chars, bytes.IndexByte(chars, pickUp[k]))
+			chars = removeByte(chars, pos)
 
 		}
 		if len(chars) == 0 {
@@ -125,6 +137,54 @@ func pick(n int, r, c bool, e string, chars []byte) ([]byte, []byte) {
 		}
 	}
 	return pickUp[:], chars[:]
+}
+
+func consByte(a []byte) []byte {
+	var tmp []byte
+	var randSeed [8]byte
+	var re *regexp.Regexp
+	cr.Read(randSeed[:])
+	rand.Seed(int64(binary.LittleEndian.Uint64(randSeed[:])))
+	tmp = append(tmp, a[:1]...)
+	a = removeByte(a, 0)
+
+	for k, _ := range a {
+		if k > 0 {
+			tempChars := consGroup(a, rune(tmp[k-1]))
+			pos := rand.Intn(len(tempChars))
+			tmp = append(tmp, tempChars[pos])
+			a = removeByte(a, bytes.IndexByte(a, tempChars[pos]))
+		}
+	}
+
+	tmp = append(tmp, a...)
+	badValuesRe := regexp.MustCompile(`([a-z]{2,}|[A-Z]{2,}|[0-9]{2,})`)
+	badValues := badValuesRe.Find(tmp)
+	if len(badValues) > 0 {
+		for _, v := range badValues {
+			if v >= 'A' && v <= 'Z' {
+				re = regexp.MustCompile(`[^A-Z]{2}`)
+			}
+			if v >= 'a' && v <= 'z' {
+				re = regexp.MustCompile(`[^a-z]{2}`)
+			}
+			if v >= '0' && v <= '9' {
+				re = regexp.MustCompile(`[^0-9]{2}`)
+			}
+			loc := re.FindIndex(tmp)
+			if loc == nil {
+				continue
+			}
+			tmp = append(tmp, 0)
+			copy(tmp[loc[1]:], tmp[loc[1]-1:])
+			tmp[loc[1]-1] = v
+
+			tmp[len(tmp)-1] = 0
+			tmp = tmp[:len(tmp)-1]
+		}
+	}
+
+	return tmp
 }
 
 func consGroup(b []byte, ch rune) []byte {

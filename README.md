@@ -4,7 +4,7 @@ Random password generator library.
 
 ### Configs
 - Disallow repeat characters
-- Disallow consecutive characters from same type ( sagdfge, 3124353, DARGW, @#$%^&)
+- Disallow consecutive characters from same type ( sagdfge, 3124353, DARGW, @#$%^&) if it is possible
 - Exclude charaters list
 
 
@@ -93,10 +93,10 @@ consecutive example:
 ```
 &rndpass.Config{
 		Length:   22,
-		Numbers:  1,
-		Lower:    1,
-		Upper:    1,
-		Symbols:  1,
+		Numbers:  5,
+		Lower:    5,
+		Upper:    5,
+		Symbols:  5,
 		Exclude:  "@\"",
 		NoRepeat: true,
 		Cons:     true,

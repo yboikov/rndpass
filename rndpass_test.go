@@ -1,11 +1,12 @@
 package rndpass
 
 import (
-	"strings"
+	"bytes"
+	"regexp"
 	"testing"
 )
 
-var result string
+var result []byte
 
 // const (
 // 	reNums    = `^([^0-9]*[0-9]){%d}[^0-9]*`
@@ -14,9 +15,9 @@ var result string
 // 	reSymbols = `^([A-Za-z0-9]*[^A-Za-z0-9]){%d}[A-Za-z0-9]*`
 // )
 
-func testGen(le, l, u, n, s int, e string, noRepeat bool, t *testing.T) {
-	c := &Config{Length: le, Numbers: n, Lower: l, Upper: u, Symbols: s, Exclude: e, NoRepeat: noRepeat}
-	a, err := c.Gen()
+func testGen(le, l, u, n, s int, e string, noRepeat, cons bool, t *testing.T) {
+	c := &Config{Length: le, Numbers: n, Lower: l, Upper: u, Symbols: s, Exclude: e, NoRepeat: noRepeat, Cons: cons}
+	a, err := c.GenBytes()
 	if err != nil {
 		t.Errorf("%s", err)
 	}
@@ -50,37 +51,43 @@ func testGen(le, l, u, n, s int, e string, noRepeat bool, t *testing.T) {
 	}
 
 	if e != "" {
-		for _, v := range e {
-			if strings.Index(a, string(v)) > -1 {
-				t.Errorf("Found excluded character %s in %s", string(v), a)
-			}
+		if bytes.IndexAny(a, e) > -1 {
+			t.Errorf("Found excluded character %s in %s", e, a)
 		}
 	}
 
 	if noRepeat {
 		for k, v := range a {
-			i := strings.Index(a[k+1:], string(v))
-			if i > -1 {
-				t.Errorf("Found duplicate character %s at %d in %s", string(v), i, a)
+			if bytes.IndexByte(a[k+1:], v) > -1 {
+				t.Errorf("found duplicate character %s in %s", string(v), a)
 			}
 		}
 	}
 
-	// re := regexp.MustCompile(fmt.Sprintf(reNums, n))
-	// if !re.MatchString(a) {
-	// 	t.Errorf("Have less than %d numbers", n)
-	// }
+	if c.Cons {
+		re := regexp.MustCompile(`([a-z]{2,}|[A-Z]{2,}|[0-9]{2,})`)
+		if re.Match(a) {
+			t.Errorf("Found consecutive characters %s in %s", string(re.Find(a)), a)
+		}
+	}
 
 }
 
-func TestGenLowerCase(t *testing.T) { testGen(40, 20, 0, 0, 0, "", false, t) }
-func TestGenUpperCase(t *testing.T) { testGen(40, 10, 20, 0, 10, "", false, t) }
-func TestGenNumbers(t *testing.T)   { testGen(40, 0, 10, 20, 10, "", false, t) }
-func TestGenSymbols(t *testing.T)   { testGen(40, 10, 10, 0, 20, "", false, t) }
+// func TestGenLowerCase(t *testing.T) { testGen(40, 26, 0, 0, 0, "", false, false, t) }
+// func TestGenUpperCase(t *testing.T) { testGen(40, 0, 26, 0, 0, "", false, false, t) }
+// func TestGenNumbers(t *testing.T)   { testGen(40, 0, 0, 26, 10, "", false, false, t) }
+// func TestGenSymbols(t *testing.T)   { testGen(40, 0, 0, 0, 26, "", false, false, t) }
 
-func TestGenExclude(t *testing.T) { testGen(50, 20, 10, 0, 20, "ABC!@#", false, t) }
-func TestGenRepeat(t *testing.T)  { testGen(50, 20, 10, 0, 20, "ABC!@#", true, t) }
+// func TestGenExclude(t *testing.T) { testGen(50, 20, 10, 0, 20, "ABC!@#", false, false, t) }
+// func TestGenRepeat(t *testing.T)  { testGen(50, 20, 10, 0, 20, "ABC!@#", true, false, t) }
 
+// func TestGenCons10(t *testing.T) {
+// 	// var per int
+// 	//TODO: calc percent of bad passwords
+// 	for x := 0; x <= 1; x++ {
+// 		testGen(32, 1, 1, 1, 1, "", true, true, t)
+// 	}
+// }
 func Test_pick(t *testing.T) {
 	a, b := pick(10, false, false, "", []byte("test"))
 	if string(a) == "test" && string(b) != "" {
@@ -104,14 +111,23 @@ func Test_consGroup(t *testing.T) {
 
 }
 
+func Test_consByte(t *testing.T) {
+
+	// a := []byte("jM~H1|Y0Tt(m)rFyJs^RfCDVG")
+	// fmt.Println("Orig: ", string(a))
+
+	// b := consByte(a)
+	// fmt.Println("Cons: ", string(b))
+}
+
 func benchmark_Gen(size int, b *testing.B) {
-	var r string
+	var r []byte
 	c := &Config{
 		Length:  size,
 		Exclude: "@#$ASD",
 	}
 	for i := 0; i <= b.N; i++ {
-		r, _ = c.Gen()
+		r, _ = c.GenBytes()
 	}
 	result = r
 }
