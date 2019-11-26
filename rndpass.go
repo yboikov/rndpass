@@ -100,7 +100,7 @@ func (c Config) GenBytes() ([]byte, error) {
 	p, _ = pick(c.Length, true, c.Cons, c.Exclude, p)
 	if c.Cons {
 		// still does not work
-		// p = consByte(p)
+		p = consByte(p)
 	}
 	if len(p) == 0 {
 		return []byte{}, fmt.Errorf("There are no characters to pickup from!")
@@ -159,9 +159,11 @@ func consByte(a []byte) []byte {
 	}
 
 	tmp = append(tmp, a...)
-	fmt.Println("orig: ", string(tmp))
+	cons := make([]byte, len(tmp))
+	copy(cons, tmp)
+	//fmt.Println("orig: ", string(cons))
 	badValuesRe := regexp.MustCompile(`([a-z]{2,}|[A-Z]{2,}|[0-9]{2,})$`)
-	badValues := badValuesRe.Find(tmp)
+	badValues := badValuesRe.Find(cons)
 	if len(badValues) > 0 {
 		for k := len(badValues) - 1; k >= 0; k-- {
 			//for _, v := range badValues {
@@ -176,21 +178,23 @@ func consByte(a []byte) []byte {
 			}
 			if (badValues[k] < '0' || badValues[k] > '9') && (badValues[k] < 'A' || badValues[k] > 'Z') && (badValues[k] < 'a' || badValues[k] > 'z') {
 				re = regexp.MustCompile(`[A-Za-z0-9]{2,}`)
+
 			}
-			loc := re.FindIndex(tmp)
+			loc := re.FindIndex(cons)
 			if loc == nil {
 				continue
 			}
-			tmp = append(tmp, 0)
-			copy(tmp[loc[1]:], tmp[loc[1]-1:])
-			tmp[loc[1]-1] = badValues[k]
 
-			tmp[len(tmp)-1] = 0
-			tmp = tmp[:len(tmp)-1]
+			cons = append(cons, 0)
+			copy(cons[loc[1]:], cons[loc[1]-1:])
+			cons[loc[1]-1] = badValues[k]
+
+			cons[len(cons)-1] = 0
+			cons = cons[:len(cons)-1]
 		}
 	}
 
-	return tmp
+	return cons
 }
 
 func consGroup(b []byte, ch rune) []byte {
