@@ -172,6 +172,9 @@ func consByte(a []byte) []byte {
 			if tmp[k] >= '0' && tmp[k] <= '9' {
 				re = regexp.MustCompile(`[^0-9]{2}`)
 			}
+			if (tmp[k] < '0' || tmp[k] > '9') && (tmp[k] < 'A' || tmp[k] > 'Z') && (tmp[k] < 'a' || tmp[k] > 'z') {
+				re = regexp.MustCompile(`[^A-Za-z0-9]{2,}`)
+			}
 			loc := re.FindIndex(tmp)
 			if loc == nil {
 				continue
