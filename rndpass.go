@@ -99,7 +99,8 @@ func (c Config) GenBytes() ([]byte, error) {
 
 	p, _ = pick(c.Length, true, c.Cons, c.Exclude, p)
 	if c.Cons {
-		p = consByte(p)
+		// still does not work
+		// p = consByte(p)
 	}
 	if len(p) == 0 {
 		return []byte{}, fmt.Errorf("There are no characters to pickup from!")
@@ -158,22 +159,23 @@ func consByte(a []byte) []byte {
 	}
 
 	tmp = append(tmp, a...)
-	badValuesRe := regexp.MustCompile(`([a-z]{2,}|[A-Z]{2,}|[0-9]{2,})`)
+	fmt.Println("orig: ", string(tmp))
+	badValuesRe := regexp.MustCompile(`([a-z]{2,}|[A-Z]{2,}|[0-9]{2,})$`)
 	badValues := badValuesRe.Find(tmp)
 	if len(badValues) > 0 {
 		for k := len(badValues) - 1; k >= 0; k-- {
 			//for _, v := range badValues {
-			if tmp[k] >= 'A' && tmp[k] <= 'Z' {
+			if badValues[k] >= 'A' && badValues[k] <= 'Z' {
 				re = regexp.MustCompile(`[^A-Z]{2}`)
 			}
-			if tmp[k] >= 'a' && tmp[k] <= 'z' {
+			if badValues[k] >= 'a' && badValues[k] <= 'z' {
 				re = regexp.MustCompile(`[^a-z]{2}`)
 			}
-			if tmp[k] >= '0' && tmp[k] <= '9' {
+			if badValues[k] >= '0' && badValues[k] <= '9' {
 				re = regexp.MustCompile(`[^0-9]{2}`)
 			}
-			if (tmp[k] < '0' || tmp[k] > '9') && (tmp[k] < 'A' || tmp[k] > 'Z') && (tmp[k] < 'a' || tmp[k] > 'z') {
-				re = regexp.MustCompile(`[^A-Za-z0-9]{2,}`)
+			if (badValues[k] < '0' || badValues[k] > '9') && (badValues[k] < 'A' || badValues[k] > 'Z') && (badValues[k] < 'a' || badValues[k] > 'z') {
+				re = regexp.MustCompile(`[A-Za-z0-9]{2,}`)
 			}
 			loc := re.FindIndex(tmp)
 			if loc == nil {
@@ -181,7 +183,7 @@ func consByte(a []byte) []byte {
 			}
 			tmp = append(tmp, 0)
 			copy(tmp[loc[1]:], tmp[loc[1]-1:])
-			tmp[loc[1]-1] = tmp[k]
+			tmp[loc[1]-1] = badValues[k]
 
 			tmp[len(tmp)-1] = 0
 			tmp = tmp[:len(tmp)-1]

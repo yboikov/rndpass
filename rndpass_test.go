@@ -79,7 +79,7 @@ func testGen(le, l, u, n, s int, e string, noRepeat, cons bool, t *testing.T) {
 // func TestGenSymbols(t *testing.T)   { testGen(40, 0, 0, 0, 26, "", false, false, t) }
 
 // func TestGenExclude(t *testing.T) { testGen(50, 20, 10, 0, 20, "ABC!@#", false, false, t) }
-// func TestGenRepeat(t *testing.T)  { testGen(50, 20, 10, 0, 20, "ABC!@#", true, false, t) }
+func TestGenRepeat(t *testing.T) { testGen(22, 5, 5, 5, 5, "ABC!@#", true, true, t) }
 
 // func TestGenCons10(t *testing.T) {
 // 	// var per int
