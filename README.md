@@ -48,9 +48,9 @@ import (
 func main() {
 	f := &rndpass.Config{
 		Length: 21,
-		Numbers:  1, // have 10 numbers if possible ( with noRepeat=true and exclude="12345" only 67890 will be use )
-		Lower:    1, // have 10 lower case letters  
-		Upper:    1, // have 10 upper case letters 
+		Numbers:  1, // min 1 number if possible ( with noRepeat=true and exclude="12345" only 67890 will be use )
+		Lower:    1, // min 1 lower case letters  
+		Upper:    1, // min 1 upper case letters 
 	}
 	p, err := f.Gen()
 	if err != nil {
