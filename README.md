@@ -102,7 +102,7 @@ consecutive example:
 		Cons:     true,
 }
 ```
-output:
+sample passwords:
 ```
 wDe!H^Z3u+z&7Xc#T\Qm2}
 3d{w}9O.I,u1qT_UaW(X&:
