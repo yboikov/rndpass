@@ -1,18 +1,14 @@
 package rndpass
 
 import (
-	"bytes"
 	cr "crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"regexp"
+	"time"
 )
 
-type chars []byte
-
-// Config struct
-// some info
 type Config struct {
 	// Expected password length
 	Length   int
@@ -21,7 +17,6 @@ type Config struct {
 	Lower    int
 	Upper    int
 	NoRepeat bool
-	Cons     bool //consecutive
 	Exclude  string
 }
 
@@ -47,194 +42,102 @@ func (c Config) Gen() (string, error) {
 }
 
 func (c Config) GenBytes() ([]byte, error) {
-	var p, rest []byte
-	if c.Length > 0 && c.Lower+c.Upper+c.Symbols+c.Numbers > c.Length {
-		return []byte{}, fmt.Errorf("Required password length is less than minimum required characters")
+	// length := 10
+	// uCount := 4
+	// lCount := 4
+	var reg *regexp.Regexp
+	var excludeRex string
+	if len(c.Exclude) > 0 {
+		exclude := moveToEnd([]byte(c.Exclude), 45)
+		excludeRex = fmt.Sprintf("[%s]+", regexp.QuoteMeta(string(*exclude)))
 	}
+	reg = regexp.MustCompile(excludeRex)
 
-	if c.Lower+c.Upper+c.Symbols+c.Numbers == 0 {
-		// default
-		c.Lower = 1
-		c.Upper = 1
-		c.Numbers = 1
-		c.Symbols = 1
-	}
+	upperSet := []byte(reg.ReplaceAllString("ABCDEFGHIJKLMNOPQRSTUVWXYZ", ""))
+	lowerSet := []byte(reg.ReplaceAllString("abcdefghijklmnopqrstuvwxyz", ""))
+	numberSet := []byte(reg.ReplaceAllString("0987654321", ""))
+	symbolSet := []byte(reg.ReplaceAllString(" !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", ""))
 
-	if c.Length == 0 {
-		c.Length = c.Lower + c.Upper + c.Symbols + c.Numbers
-	}
+	var allBytes []byte
+	var rndBytes []byte
 
 	if c.Upper > 0 {
-		ch, r := pick(c.Upper, c.NoRepeat, c.Cons, c.Exclude, []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
-		p = append(p, ch...)
-		rest = append(rest, r...)
-	}
 
+		rndBytes = append(rndBytes, c.getRndChars(&upperSet, c.Upper)...)
+		allBytes = append(allBytes, upperSet...)
+
+	}
 	if c.Lower > 0 {
-		ch, r := pick(c.Lower, c.NoRepeat, c.Cons, c.Exclude, []byte("abcdefghijklmnopqrstuvwxyz"))
-		p = append(p, ch...)
-		rest = append(rest, r...)
+		rndBytes = append(rndBytes, c.getRndChars(&lowerSet, c.Lower)...)
+		allBytes = append(allBytes, lowerSet...)
 
 	}
-
 	if c.Numbers > 0 {
-		ch, r := pick(c.Numbers, c.NoRepeat, c.Cons, c.Exclude, []byte("0987654321"))
-		p = append(p, ch...)
-		rest = append(rest, r...)
+		rndBytes = append(rndBytes, c.getRndChars(&numberSet, c.Numbers)...)
+		allBytes = append(allBytes, numberSet...)
 
 	}
-
 	if c.Symbols > 0 {
-		ch, r := pick(c.Symbols, c.NoRepeat, c.Cons, c.Exclude, []byte(" !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"))
-		p = append(p, ch...)
-		rest = append(rest, r...)
+		rndBytes = append(rndBytes, c.getRndChars(&symbolSet, c.Symbols)...)
+		allBytes = append(allBytes, symbolSet...)
 
 	}
 
-	if c.Length > c.Lower+c.Upper+c.Symbols+c.Numbers {
-		freeCount := c.Length - (c.Lower + c.Upper + c.Symbols + c.Numbers)
-		rest, _ = pick(freeCount, c.NoRepeat, c.Cons, c.Exclude, rest)
-		p = append(p, rest...)
+	if c.NoRepeat {
+		sorted := moveToEnd([]byte(rndBytes), 45)
+		s := fmt.Sprintf("[%s]+", regexp.QuoteMeta(string(*sorted)))
+
+		reg := regexp.MustCompile(s)
+		// remove already used bytes
+		allBytes = []byte(reg.ReplaceAllString(string(allBytes), ""))
 	}
 
-	p, _ = pick(c.Length, true, c.Cons, c.Exclude, p)
-	if c.Cons {
-		// still does not work
-		p = consByte(p)
+	if len(rndBytes) < c.Length {
+		rndBytes = append(rndBytes, c.getRndChars(&allBytes, c.Length-len(rndBytes))...)
 	}
-	if len(p) == 0 {
-		return []byte{}, fmt.Errorf("There are no characters to pickup from!")
-	}
-	return p, nil
+
+	// return shuffle(rndBytes), nil
+	rand.Seed(time.Now().UTC().UnixNano())
+	rand.Shuffle(len(rndBytes), func(i, j int) {
+		rndBytes[i], rndBytes[j] = rndBytes[j], rndBytes[i]
+	})
+	return rndBytes, nil
+
 }
 
-func pick(n int, r, c bool, e string, chars []byte) ([]byte, []byte) {
-	var pos int
-	var b [8]byte
-	var pickUp []byte
+func (cfg Config) getRndChars(chrs *[]byte, countChars int) []byte {
+	if len(*chrs) == 0 {
+		return *chrs
+	}
+
+	var b = make([]byte, countChars+8)
+	var rndChrs []byte
 	cr.Read(b[:])
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
-	// remove exluded characters from chars
-	i := bytes.IndexAny(chars, e)
-	for i > -1 {
-		chars = removeByte(chars, i)
-		i = bytes.IndexAny(chars, e)
-	}
-	if len(chars) == 0 {
-		return []byte{}, []byte{}
-	}
-
-	for k := 0; k < n; k++ {
-		pos = rand.Intn(len(chars))
-		pickUp = append(pickUp, chars[pos])
-
-		// if no repeat is set remove picked up char
-		if r {
-			chars = removeByte(chars, pos)
-
-		}
-		if len(chars) == 0 {
-			return pickUp[:], chars[:]
+	for c := 0; c < countChars; c++ {
+		idx := int(b[c]) % len(*chrs)
+		rndChrs = append(rndChrs, (*chrs)[idx])
+		if cfg.NoRepeat {
+			*chrs = append((*chrs)[:idx], (*chrs)[idx+1:]...)
+			if len(*chrs) == 0 {
+				return rndChrs
+			}
 		}
 	}
-	return pickUp[:], chars[:]
+	return rndChrs
 }
 
-func consByte(a []byte) []byte {
-	var tmp []byte
-	var randSeed [8]byte
-	var re *regexp.Regexp
-	cr.Read(randSeed[:])
-	rand.Seed(int64(binary.LittleEndian.Uint64(randSeed[:])))
-	tmp = append(tmp, a[:1]...)
-	a = removeByte(a, 0)
-
-	for k, _ := range a {
-		if k > 0 {
-			tempChars := consGroup(a, rune(tmp[k-1]))
-			pos := rand.Intn(len(tempChars))
-			tmp = append(tmp, tempChars[pos])
-			a = removeByte(a, bytes.IndexByte(a, tempChars[pos]))
-		}
-	}
-
-	tmp = append(tmp, a...)
-	cons := make([]byte, len(tmp))
-	copy(cons, tmp)
-	//fmt.Println("orig: ", string(cons))
-	badValuesRe := regexp.MustCompile(`([a-z]{2,}|[A-Z]{2,}|[0-9]{2,})$`)
-	badValues := badValuesRe.Find(cons)
-	if len(badValues) > 0 {
-		for k := len(badValues) - 1; k >= 0; k-- {
-			//for _, v := range badValues {
-			if badValues[k] >= 'A' && badValues[k] <= 'Z' {
-				re = regexp.MustCompile(`[^A-Z]{2}`)
-			}
-			if badValues[k] >= 'a' && badValues[k] <= 'z' {
-				re = regexp.MustCompile(`[^a-z]{2}`)
-			}
-			if badValues[k] >= '0' && badValues[k] <= '9' {
-				re = regexp.MustCompile(`[^0-9]{2}`)
-			}
-			if (badValues[k] < '0' || badValues[k] > '9') && (badValues[k] < 'A' || badValues[k] > 'Z') && (badValues[k] < 'a' || badValues[k] > 'z') {
-				re = regexp.MustCompile(`[A-Za-z0-9]{2,}`)
-
-			}
-			loc := re.FindIndex(cons)
-			if loc == nil {
-				continue
-			}
-
-			cons = append(cons, 0)
-			copy(cons[loc[1]:], cons[loc[1]-1:])
-			cons[loc[1]-1] = badValues[k]
-
-			cons[len(cons)-1] = 0
-			cons = cons[:len(cons)-1]
-		}
-	}
-
-	return cons
-}
-
-func consGroup(b []byte, ch rune) []byte {
-	var newGroup []byte
-
+func moveToEnd(b []byte, mB byte) *[]byte {
+	newB := []byte{}
 	for _, v := range b {
-		if ch >= 'a' && ch <= 'z' {
-			if v < 'a' || v > 'z' {
-				newGroup = append(newGroup, byte(v))
-				continue
-			}
+		if v == mB {
+			defer func(bb *[]byte, v byte) {
+				*bb = append(*bb, v)
+				//fmt.Println(bb)
+			}(&newB, v)
+			continue
 		}
-		if ch >= 'A' && ch <= 'Z' {
-			if v < 'A' || v > 'Z' {
-				newGroup = append(newGroup, byte(v))
-				continue
-			}
-		}
-		if ch >= '0' && ch <= '9' {
-			if v < '0' || v > '9' {
-				newGroup = append(newGroup, byte(v))
-				continue
-			}
-		}
-		if (ch < '0' || ch > '9') && (ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') {
-			if (v >= '0' && v <= '9') || (v >= 'A' && v <= 'Z') || (v >= 'a' && v <= 'z') {
-				newGroup = append(newGroup, byte(v))
-			}
-		}
+		newB = append(newB, v)
 	}
-	if len(newGroup) > 0 {
-		return newGroup
-	}
-	return b
-
-}
-
-func removeByte(b []byte, pos int) []byte {
-	b[pos] = b[len(b)-1]
-	b[len(b)-1] = 0
-	b = b[:len(b)-1]
-	return b[:]
+	return &newB
 }
